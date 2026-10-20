@@ -24,3 +24,14 @@ A package can add a device tree node that the kernel's device trees do not have 
 - Refuse a snapshot restore the live boot files do not match. `omarchy-mac-snapshot-check` is limine-snapper-sync's pre hook `04-omarchy-mac-snapshot-check` and post hook `99-omarchy-mac-snapshot-check`. Before the restore, a Limine Mac must be booted into the snapshot, and that root must pass `omarchy-apple-silicon-boot-check --boot-chain`: what the next boot reads, as `update-verify` checks it, with no reboot pending. The restore's own list can still put back another snapshot, so after it the restored `@` must hold the booted root's kernel, device trees, m1n1, U-Boot and Limine, and the UKI the restore put on the ESP must carry that kernel; otherwise it says not to reboot and how to put the backup back, and the pre hook lets that one undo through while the booted root fails its check, since the ESP then holds the refused root's boot files. The restored root must also carry the Limine activation, ESP, crypttab and root mount of the booted root. A restored root that cannot be read is reported unchecked and arms no undo. The pre hook sorts before the activation gate so a GRUB Mac is told why: Omarchy's restore is limine-snapper-restore alone, with no subvolume swap for GRUB. The hooks run from the booted snapshot, so they protect snapshots taken with this package or later.
 
 Do not duplicate shared snapshot/UI/password policy here. Historical GRUB fallback remains for compatibility; this refactor qualifies fresh Limine images, not upgrades of old factory snapshots. Moving an existing Mac onto these packages is a standalone migration, outside this package.
+
+Aurora native ARM64 Steam needs `CONFIG_ARM64_USER4K_EXPERIMENTAL=y` and
+`user4k=on` at boot. During `setup-boot`, `grub-console.sh` adds the latter
+when the installed kernel package is `linux-aurora`. It preserves an explicit
+`user4k=` option in either GRUB command-line variable, so `user4k=off` remains
+an opt-out. `/etc/default/grub` feeds both GRUB and Limine; the existing pending
+journal retries a failed boot-file rebuild. Existing installations apply the
+setting by running `sudo omarchy-lifecycle-dispatch setup-boot`, then rebooting.
+This enables an experimental kernel facility; it does not change the native
+16K kernel page size or select 4K for ordinary applications. Omarchy's
+`omarchy-steam-fex` uses muvm's guest instead and does not need host user4k.
