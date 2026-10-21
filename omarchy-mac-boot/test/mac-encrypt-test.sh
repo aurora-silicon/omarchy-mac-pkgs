@@ -7,6 +7,7 @@ FILES=$ROOT/files
 SCRIPT=$FILES/usr/lib/omarchy/initcpio/omarchy-mac-encrypt
 INSTALL=$FILES/usr/lib/initcpio/install/omarchy-mac-encrypt
 UNIT=$FILES/usr/lib/omarchy/initcpio/omarchy-mac-encrypt.service
+ROOT_DEVICE_DROPIN=$FILES/usr/lib/omarchy/initcpio/omarchy-mac-encrypt-root-device.conf
 DROPIN=$FILES/etc/mkinitcpio.conf.d/91-omarchy-mac-encrypt.conf
 RUNTIME_HOOK=$FILES/usr/lib/initcpio/hooks/omarchy-mac-encrypt
 ESP_UUID=4F4D-5801
@@ -30,6 +31,11 @@ grep -Eq '\bcryptsetup\b' "$INSTALL" && grep -Eq '\bbtrfs\b' "$INSTALL" && grep 
   fail "the install hook puts cryptsetup and btrfs in the image"
 grep -Fq 'add_file /usr/lib/omarchy/initcpio/omarchy-mac-encrypt' "$INSTALL" ||
   fail "the install hook copies the unit script into the initramfs"
+grep -Fq 'omarchy-mac-encrypt-root-device.conf \' "$INSTALL" &&
+  grep -Fxq '        /usr/lib/systemd/system/dev-mapper-root.device.d/omarchy-mac-encrypt.conf 644' "$INSTALL" &&
+  grep -Fxq '[Unit]' "$ROOT_DEVICE_DROPIN" &&
+  grep -Fxq 'JobRunningTimeoutSec=infinity' "$ROOT_DEVICE_DROPIN" ||
+  fail "the initramfs keeps the root mapper device job alive during conversion"
 
 grep -Fq 'After=systemd-udevd.service systemd-udev-trigger.service systemd-udev-settle.service omarchy-vendorfw-initrd.service' "$UNIT" &&
   grep -Fq 'Wants=systemd-udevd.service systemd-udev-trigger.service omarchy-vendorfw-initrd.service' "$UNIT" &&
@@ -155,6 +161,7 @@ if command -v systemd-analyze >/dev/null; then
   verify_units=$verify_root/usr/lib/systemd/system
   install -D -m 755 "$SCRIPT" "$verify_root/usr/lib/omarchy/initcpio/omarchy-mac-encrypt"
   install -D -m 644 "$UNIT" "$verify_units/omarchy-mac-encrypt.service"
+  install -D -m 644 "$ROOT_DEVICE_DROPIN" "$verify_units/dev-mapper-root.device.d/omarchy-mac-encrypt.conf"
   printf '[Unit]\nDefaultDependencies=no\n[Service]\nType=oneshot\nExecStart=/usr/lib/omarchy/initcpio/omarchy-mac-encrypt\n' \
     >"$verify_units/probe.service"
   # The unmount unit as systemd-cryptsetup-generator writes it, with our drop-in.
@@ -168,14 +175,16 @@ if command -v systemd-analyze >/dev/null; then
       verify_out+=$'\n'"exit $?"
     verify_out+=$(systemd-analyze verify --man=no --root="$verify_root" "$verify_units/keydev-root-umount.service" 2>&1) ||
       verify_out+=$'\n'"exit $?"
+    verify_out+=$(systemd-analyze verify --man=no --root="$verify_root" dev-mapper-root.device 2>&1) ||
+      verify_out+=$'\n'"exit $?"
     verified=true
   else
     verified=false
   fi
   rm -rf "$verify_root"
   if [[ $verified == "true" ]]; then
-    [[ -z $verify_out ]] || fail "systemd-analyze verify accepts the initrd unit and the key-device unmount drop-in: $verify_out"
-    echo 'ok - systemd-analyze verify accepts the initrd unit and the key-device unmount drop-in'
+    [[ -z $verify_out ]] || fail "systemd-analyze verify accepts the initrd units and drop-ins: $verify_out"
+    echo 'ok - systemd-analyze verify accepts the initrd units and drop-ins'
   else
     echo 'ok - systemd-analyze cannot verify units here; unit verification not run'
   fi

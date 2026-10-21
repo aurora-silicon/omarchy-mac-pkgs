@@ -17,6 +17,8 @@ build() {
     add_file /usr/lib/omarchy/initcpio/omarchy-mac-encrypt
     add_file /usr/lib/omarchy/initcpio/omarchy-mac-encrypt.service \
         /usr/lib/systemd/system/omarchy-mac-encrypt.service 644
+    add_file /usr/lib/omarchy/initcpio/omarchy-mac-encrypt-root-device.conf \
+        /usr/lib/systemd/system/dev-mapper-root.device.d/omarchy-mac-encrypt.conf 644
     add_symlink /usr/lib/systemd/system/initrd-root-device.target.requires/omarchy-mac-encrypt.service \
         ../omarchy-mac-encrypt.service
     add_file /usr/lib/omarchy/initcpio/omarchy-mac-encrypt-keydev.conf \
