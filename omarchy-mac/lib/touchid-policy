@@ -9,7 +9,7 @@ import shlex
 import subprocess
 
 EXPECTED = dict(xart_writes='1', provision_keybag='0', xart_guard='1',
-                trusted_keys='0', filevault_api='0', xarm_trace='1')
+                trusted_keys='0', filevault_api='0')
 SAFE_KEYS = set(EXPECTED) | {'refkey_v2', 'identity_override', 'identity_source'}
 
 

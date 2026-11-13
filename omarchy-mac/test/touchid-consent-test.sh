@@ -689,7 +689,7 @@ existing_fixture
 before=$(sha256sum "$fixture"/*.bin)
 run touchid-enable --existing >/dev/null || fail 'an existing J613 bag is adopted'
 [[ $(sha256sum "$fixture"/*.bin) == "$before" ]] || fail 'adoption leaves every state byte unchanged'
-grep -Fxq 'options apple_sep xart_writes=1 provision_keybag=0 xart_guard=1 trusted_keys=0 filevault_api=0 xarm_trace=1' "$fixture/options-at-load" ||
+grep -Fxq 'options apple_sep xart_writes=1 provision_keybag=0 xart_guard=1 trusted_keys=0 filevault_api=0' "$fixture/options-at-load" ||
   fail 'adoption disables provisioning and optional key APIs with the qualified guard'
 ! grep -q calibration "$fixture/calls" || fail 'adoption never carves calibration'
 for refusal in absent empty symlink hardlink writable calibration recovery loaded; do
