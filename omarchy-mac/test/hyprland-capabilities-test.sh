@@ -33,6 +33,13 @@ if CAP_TEST_FAIL=1 bash "$helper" "$temporary/stage"; then
   exit 1
 fi
 [[ $(wc -l < "$CAP_TEST_LOG") -eq 4 ]]
+mv "$temporary/bin/setcap" "$temporary/setcap"
+if PATH="$temporary/bin" /bin/bash "$helper" "$temporary/stage" 2>"$temporary/missing-setcap"; then
+  echo 'missing setcap was hidden' >&2
+  exit 1
+fi
+grep -Fq 'install libcap and rerun' "$temporary/missing-setcap"
+mv "$temporary/setcap" "$temporary/bin/setcap"
 rm "$temporary/stage/usr/bin/Hyprland"
 ln -s /bin/true "$temporary/stage/usr/bin/Hyprland"
 bash "$helper" "$temporary/stage"

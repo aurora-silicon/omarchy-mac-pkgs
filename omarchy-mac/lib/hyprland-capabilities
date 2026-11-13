@@ -7,5 +7,9 @@ root=${1:-}
 [[ -z $root || $root == /* && $root != "/" ]] || exit 2
 binary=$root/usr/bin/Hyprland
 if [[ -f $binary && ! -L $binary ]]; then
+  if ! command -v setcap >/dev/null 2>&1; then
+    echo 'Hyprland capability setup requires setcap; install libcap and rerun /usr/lib/omarchy-mac/hyprland-capabilities.' >&2
+    exit 1
+  fi
   setcap cap_sys_nice=ep "$binary"
 fi
