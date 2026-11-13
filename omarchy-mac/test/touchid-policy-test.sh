@@ -13,6 +13,10 @@ with tempfile.TemporaryDirectory() as tmp:
  (diag/'policy').write_text(' '.join(k+'='+v for k,v in values.items())+'\n')
  result=p.report(options,driver,'',True)
  assert result['status']=='verified' and result['active']==values,result
+ # Tracing is optional diagnostic output, not an admission requirement.
+ for trace in ('0', '1'):
+  (diag/'policy').write_text(' '.join(k+'='+v for k,v in {**values,'xarm_trace':trace}.items())+'\n')
+  assert p.report(options,driver,'',True)['status']=='verified'
  (diag/'policy').unlink();(diag/'xart').write_text('enabled\n');(diag/'xart_guard').write_text('1\n')
  log='apple_sep: xART guard level 1\napple_sep: writes ENABLED\napple_sep: xART: using /chosen/apfs-preboot-uuid\n'
  result=p.report(options,driver,log,True)
