@@ -56,7 +56,7 @@ elif ! compatible apple,t8112 && ! compatible apple,t6020 && ! compatible apple,
   exit 0
 fi
 
-# m1n1's forwarded identity selects this install's own lane in the enclave.
+# aura's forwarded identity selects this install's own lane in the enclave.
 if [[ ! -r $tree/chosen/apfs-preboot-uuid ]]; then
   echo unsupported:no-os-identity
   exit 0
@@ -75,7 +75,7 @@ fi
 # The Neo's sensor key is rebuilt once the owner agrees, by touchid-root-key
 # (Python), from the factory records asahi-installer leaves on the ESP.
 if compatible apple,t8140 && ! installed apple/msrk-j700.bin &&
-  { [[ ! -r $esp/asahi/all_firmware.tar.gz ]] || ! command -v "$python" >/dev/null; }; then
+  { [[ ! -r $esp/aurora/all_firmware.tar.gz ]] || ! command -v "$python" >/dev/null; }; then
   echo unsupported:no-root-key
   exit 0
 fi

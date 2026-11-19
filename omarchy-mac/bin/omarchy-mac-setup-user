@@ -33,7 +33,7 @@ done
 # The microphone mapper: enabled once, keeping every override and a later
 # disable.
 setup_microphone() {
-  unit=omarchy-asahi-mic.service
+  unit=omarchy-aurora-mic.service
   # Masks, custom fragments and custom wants links are user/administrator choices.
   # Never enable --force or replace them with a vendor fragment.
   for file in "$config/systemd/user/$unit" "$root/etc/systemd/user/$unit" "${XDG_RUNTIME_DIR:-/run/user/$UID}/systemd/user/$unit" "$root/run/systemd/user/$unit"; do

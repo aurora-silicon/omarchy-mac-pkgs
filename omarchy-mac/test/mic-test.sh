@@ -16,16 +16,16 @@ import time
 from unittest import mock
 root = Path(sys.argv[1])
 sys.dont_write_bytecode = True
-loader = importlib.machinery.SourceFileLoader('mic', str(root / 'bin/omarchy-audio-asahi-mic-map'))
+loader = importlib.machinery.SourceFileLoader('mic', str(root / 'bin/omarchy-audio-aurora-mic-map'))
 spec = importlib.util.spec_from_loader(loader.name, loader)
 m = importlib.util.module_from_spec(spec); loader.exec_module(m)
 # The host's model and sound cards stay out of it.
 m.MODEL = Path('/nonexistent/model'); m.ASOUND_CARDS = Path('/nonexistent/cards'); m.WIREPLUMBER_CONF = Path('/nonexistent/conf.d')
 DSP = 'effect_output.j414-mic'
-EXISTING = 'module-remap-source', 'source_name=omarchy_asahi_mic master=' + DSP + ' channels=2 source_properties=' + m.OWNER + '=existing'
+EXISTING = 'module-remap-source', 'source_name=omarchy_aurora_mic master=' + DSP + ' channels=2 source_properties=' + m.OWNER + '=existing'
 # The virtual source 0.1.2 mapped into, under the same name.
-VIRTUAL_MODULE = dict(index='39', name='module-null-sink', argument='media.class=Audio/Source/Virtual sink_name=omarchy_asahi_mic channels=2 sink_properties=' + m.OWNER + '=virtual')
-LEGACY_MODULE = dict(index='41', name='module-null-sink', argument='sink_name=omarchy_asahi_mic channels=2 sink_properties=device.description=AsahiMicrophone ' + m.OWNER + '=old')
+VIRTUAL_MODULE = dict(index='39', name='module-null-sink', argument='media.class=Audio/Source/Virtual sink_name=omarchy_aurora_mic channels=2 sink_properties=' + m.OWNER + '=virtual')
+LEGACY_MODULE = dict(index='41', name='module-null-sink', argument='sink_name=omarchy_aurora_mic channels=2 sink_properties=device.description=AuroraMicrophone ' + m.OWNER + '=old')
 def obj(name, value=27525, mute=True):
     return dict(name=name, volume={'front-left': {'value': value}, 'front-right': {'value': value}}, mute=mute)
 class Audio:
@@ -308,14 +308,14 @@ with tempfile.TemporaryDirectory() as temporary:
     audio.missing = None; m.reconcile(audio, saved)
     assert audio.default == m.MAPPING
     audio = Audio(); audio.legacy = (obj(m.MAPPING), obj(m.LEGACY))
-    stranger = dict(LEGACY_MODULE, argument='sink_name=omarchy_asahi_mic')
+    stranger = dict(LEGACY_MODULE, argument='sink_name=omarchy_aurora_mic')
     audio.modules = lambda: [stranger]
     try: m.reconcile(audio, state())
     except RuntimeError as error: assert 'does not own' in str(error), error
     else: raise AssertionError('a foreign sink must not be replaced')
     assert not any(call[1] == 'unload-module' for call in audio.calls if call[0] == 'pactl')
-    for foreign in (dict(index='40', name='module-remap-source', argument='source_name=omarchy_asahi_mic master=' + DSP),
-                    dict(index='40', name='module-null-sink', argument='sink_name=omarchy_asahi_mic media.class=Audio/Source/Virtual')):
+    for foreign in (dict(index='40', name='module-remap-source', argument='source_name=omarchy_aurora_mic master=' + DSP),
+                    dict(index='40', name='module-null-sink', argument='sink_name=omarchy_aurora_mic media.class=Audio/Source/Virtual')):
         audio = Audio(True); audio.module = foreign
         try: m.reconcile(audio, state())
         except RuntimeError as error: assert 'does not own' in str(error), error
@@ -731,7 +731,7 @@ with tempfile.TemporaryDirectory() as temporary:
 # lock no pacman holds is stale). A missing or unrunnable file is never run,
 # and one that fails to run is tried again later, backing off.
 with tempfile.TemporaryDirectory() as temporary:
-    directory = Path(temporary); path = directory / 'omarchy-audio-asahi-mic-map'; lock = directory / 'db.lck'
+    directory = Path(temporary); path = directory / 'omarchy-audio-aurora-mic-map'; lock = directory / 'db.lck'
     pacman = [True]
     def put(text, mode=0o755):
         new = directory / 'new'; new.write_text(text); new.chmod(mode); os.replace(new, path)
@@ -776,7 +776,7 @@ with tempfile.TemporaryDirectory() as temporary:
         with mock.patch.dict(os.environ, {'PATH': temporary + os.pathsep + os.environ['PATH']}):
             start = time.monotonic(); result = m.Audio().signal(m.MAPPING, timeout); return result, time.monotonic() - start
     floats = 'python3 -c "import struct, sys; sys.stdout.buffer.write(struct.pack(\'<%df\' % {0}, *{1}))"; sleep 5'
-    result, elapsed = probe('[[ $1 == --device=omarchy_asahi_mic && $* == *--format=float32le* ]] || exit 1; ' + floats.format(2049, '[0.0] * 2048 + [1e-7]'))
+    result, elapsed = probe('[[ $1 == --device=omarchy_aurora_mic && $* == *--format=float32le* ]] || exit 1; ' + floats.format(2049, '[0.0] * 2048 + [1e-7]'))
     assert result is True and elapsed < 0.9, ('a quiet non-zero sample is signal', elapsed)
     result, elapsed = probe(floats.format(8192, '[0.0, -0.0] * 4096'))
     assert result is False and 0.9 <= elapsed < 2.5, ('digital silence is not signal', elapsed)
@@ -784,9 +784,9 @@ with tempfile.TemporaryDirectory() as temporary:
     assert result is None and elapsed < 0.9, 'a recorder that yields nothing is unknown'
     with mock.patch.dict(os.environ, {'PATH': str(Path(temporary) / 'missing')}):
         assert m.Audio().signal(m.MAPPING, 1.0) is None, 'a missing recorder is unknown'
-with mock.patch.object(m.Audio, 'run', return_value='536870912\tmodule-null-sink\tsink_name=omarchy_asahi_mic omarchy.asahi-mic.owner=test\t1'):
+with mock.patch.object(m.Audio, 'run', return_value='536870912\tmodule-null-sink\tsink_name=omarchy_aurora_mic omarchy.aurora-mic.owner=test\t1'):
     assert m.Audio().modules()[0]['index'] == '536870912'
-listing = '536870911\tlibpipewire-module-rt\t{\n            nice.level    = -11\n        }\t\n536870912\tmodule-null-sink\tsink_name=omarchy_asahi_mic\t1'
+listing = '536870911\tlibpipewire-module-rt\t{\n            nice.level    = -11\n        }\t\n536870912\tmodule-null-sink\tsink_name=omarchy_aurora_mic\t1'
 with mock.patch.object(m.Audio, 'run', return_value=listing):
     assert [module['index'] for module in m.Audio().modules()] == ['536870911', '536870912'], 'multi-line module arguments must not break rollback'
 # Apps show the mapping by its family name, as macOS does: the MacBook's name on
@@ -806,14 +806,14 @@ with tempfile.TemporaryDirectory() as temporary:
         load = next(call for call in audio.calls if call[:2] == ('pactl', 'load-module'))
         properties = next(arg for arg in load if arg.startswith('source_properties='))
         assert properties.startswith("source_properties='device.description=\"" + name + "\" ") and properties.endswith("'"), properties
-        assert 'AsahiMicrophone' not in properties and m.OWNER + '=' in properties and 'media.class' not in properties
+        assert 'AuroraMicrophone' not in properties and m.OWNER + '=' in properties and 'media.class' not in properties
         assert m.owned(audio.module), 'the quoted name must not hide the mapping from its owner'
 # WirePlumber's stale hidden ids (#1028, seen after a re-login) make pw-link
 # fail with EPERM: the mapper restarts WirePlumber so the next event relinks,
 # at most once per interval however often the links keep failing. Other link
 # failures never restart it.
 with tempfile.TemporaryDirectory() as temporary:
-    stamp = Path(temporary) / 'run/omarchy-asahi-mic.repaired'
+    stamp = Path(temporary) / 'run/omarchy-aurora-mic.repaired'
     refused = 'pw-link -L: failed to link ports: Operation not permitted'
     for attempt in range(3):
         audio = Audio(); audio.stamp = stamp; audio.fail_link = 21; audio.link_error = refused
@@ -883,7 +883,7 @@ for code in (0, 75, 76, 1):
         args = call.call_args.args[0]
         assert args[:3] == ['systemd-run', '--user', '--wait'] and '--unit=omarchy-audio-repair-%d' % os.getpid() in args, args
         assert args[-5:] == ['omarchy-audio-watchdog', '--repair', 'wireplumber', '--reason', 'links refused'], args
-# asahi-audio ab1b469 names the DSP's mono port MONO instead of AUX0: either
+# aurora-audio ab1b469 names the DSP's mono port MONO instead of AUX0: either
 # one is mapped, and so is a capture side PipeWire negotiated down to one MONO
 # port; a DSP or capture side that offers both shapes is never mapped.
 with tempfile.TemporaryDirectory() as temporary:
@@ -908,11 +908,11 @@ with tempfile.TemporaryDirectory() as temporary:
 print('ok - the DSP microphone is mapped from its AUX0 or MONO port, onto stereo or negotiated MONO capture')
 
 # The array is an Apple HPAI card (M1, M2), or the AOP card on J700, that
-# asahi-audio's rules build a DSP microphone for; a Mac mini's or a USB card
+# aurora-audio's rules build a DSP microphone for; a Mac mini's or a USB card
 # is none, nor is an array card the rules do not name, or unreadable files.
 with tempfile.TemporaryDirectory() as temporary:
     cards = Path(temporary) / 'cards'; conf = Path(temporary) / 'conf.d'; conf.mkdir()
-    (conf / '99-asahi.conf').write_text('{ api.alsa.path = "hw:AppleJ416HPAI,0" }\n{ api.alsa.path = "hw:AppleJ700AOP,1" }\n')
+    (conf / '99-aurora.conf').write_text('{ api.alsa.path = "hw:AppleJ416HPAI,0" }\n{ api.alsa.path = "hw:AppleJ700AOP,1" }\n')
     with mock.patch.object(m, 'ASOUND_CARDS', cards), mock.patch.object(m, 'WIREPLUMBER_CONF', conf):
         assert not m.Audio().array(), 'a missing cards file is no array'
         for text, expected in ((' 0 [AppleJ416HPAI  ]: aop_audio - MacBook Pro J416 HPAI\n 1 [AppleJ416      ]: macaudio - MacBook Pro J416\n', True),
@@ -923,7 +923,7 @@ with tempfile.TemporaryDirectory() as temporary:
             assert m.Audio().array() is expected, text
         cards.write_text(' 0 [AppleJ416HPAI  ]: aop_audio - MacBook Pro J416 HPAI\n')
         with mock.patch.object(m, 'WIREPLUMBER_CONF', Path(temporary) / 'absent'):
-            assert not m.Audio().array(), 'without asahi-audio rules there is no DSP microphone to expect'
+            assert not m.Audio().array(), 'without aurora-audio rules there is no DSP microphone to expect'
 
 # An update that adds what the DSP graph lacked (triforce-lv2) brings no audio
 # event: once the update ends, a missing DSP with an array present restarts
@@ -936,7 +936,7 @@ with tempfile.TemporaryDirectory() as temporary:
     lv2 = directory / 'lv2'; (lv2 / 'lsp-plugins.lv2').mkdir(parents=True)
     os.utime(lv2 / 'lsp-plugins.lv2', ns=(10**18, 10**18)); os.utime(lv2, ns=(10**18, 10**18))
     lock = directory / 'db.lck'; pacman = [False]
-    record = directory / 'run/omarchy-asahi-mic.installed'
+    record = directory / 'run/omarchy-aurora-mic.installed'
     def watcher(): return m.Installed(record, paths=(lv2, directory / 'absent'), lock=lock, running=lambda: pacman[0])
     # A first start (no record: the first run after an update, or a login)
     # looks once, FIRST_LOOK later; a DSP present by then needs nothing.
@@ -1063,10 +1063,10 @@ with tempfile.TemporaryDirectory() as temporary:
     assert sub.wait() is False and len(calls) == 2, 'a changed install wakes a full pass'
     sub.stop()
 print('ok - an update that changes the audio plugins restarts WirePlumber once when the DSP microphone is missing')
-unit = (root / 'vendor/systemd/user/omarchy-asahi-mic.service').read_text()
+unit = (root / 'vendor/systemd/user/omarchy-aurora-mic.service').read_text()
 assert '--watch' in unit and 'PartOf=graphical-session.target' in unit
 assert 'PartOf=pipewire.service' not in unit and 'After=graphical-session.target' not in unit
-print('ok - transactional Asahi mapping preserves choices/gain, rolls back failures and recovers lifecycle loss')
+print('ok - transactional Aurora mapping preserves choices/gain, rolls back failures and recovers lifecycle loss')
 print('ok - the mapping is a typed stereo remap source that replaces the 0.1.2 virtual source on upgrade')
 print('ok - the watcher subscribes before each pass, so a late DSP is mapped, and runs its program once an upgrade replaced it')
 PY

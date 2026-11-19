@@ -81,8 +81,8 @@ export XDG_RUNTIME_DIR="$work/no-session"
 unset XDG_CONFIG_HOME XDG_STATE_HOME
 for name in alice bob; do
   export HOME="$work/$name"
-  policy="$HOME/.config/wireplumber/wireplumber.conf.d/asahi-headset-mic.conf"
-  wants="$HOME/.config/systemd/user/graphical-session.target.wants/omarchy-asahi-mic.service"
+  policy="$HOME/.config/wireplumber/wireplumber.conf.d/aurora-headset-mic.conf"
+  wants="$HOME/.config/systemd/user/graphical-session.target.wants/omarchy-aurora-mic.service"
   : >"$CALLS"
   "$user_setup" "$stage"
   "$user_setup" "$stage"
@@ -99,14 +99,14 @@ done
 for scope in "$HOME/.config/systemd/user" "$stage/etc/systemd/user"; do
   mkdir -p "$scope"
   rm -f "$wants"
-  ln -s /dev/null "$scope/omarchy-asahi-mic.service"
+  ln -s /dev/null "$scope/omarchy-aurora-mic.service"
   "$user_setup" "$stage"
   [[ ! -e $wants && ! -L $wants ]] || fail 'user and global masks remain disabled'
-  rm "$scope/omarchy-asahi-mic.service"
-  echo custom >"$scope/omarchy-asahi-mic.service"
+  rm "$scope/omarchy-aurora-mic.service"
+  echo custom >"$scope/omarchy-aurora-mic.service"
   "$user_setup" "$stage"
   [[ ! -L $wants ]] || fail 'custom user fragment is left alone'
-  rm "$scope/omarchy-asahi-mic.service"
+  rm "$scope/omarchy-aurora-mic.service"
 done
 ln -s /dev/null "$wants"
 "$user_setup" "$stage"
@@ -128,7 +128,7 @@ with socket.socket(socket.AF_UNIX) as bus:
     bus.bind(env['XDG_RUNTIME_DIR']+'/bus')
     subprocess.run([setup], env=env, check=True)
     calls = Path(env['CALLS']).read_text()
-    assert '--user daemon-reload' in calls and '--user start omarchy-asahi-mic.service' in calls
+    assert '--user daemon-reload' in calls and '--user start omarchy-aurora-mic.service' in calls
     result = subprocess.run([setup], env=dict(env, SYSTEMCTL_STATUS='42'))
     assert result.returncode == 42
 PY
@@ -143,7 +143,7 @@ rm "$wants"
 [[ ! -s $CALLS ]] || fail 'repeat setup does not reenable disabled Wi-Fi recovery'
 pass 'explicit disables survive repeated setup'
 
-[[ -f $stage/usr/share/wireplumber/wireplumber.conf.d/asahi-audio-no-suspend.conf ]] || fail 'the vendor speaker policy ships'
+[[ -f $stage/usr/share/wireplumber/wireplumber.conf.d/aurora-audio-no-suspend.conf ]] || fail 'the vendor speaker policy ships'
 pass 'the vendor speaker no-suspend policy ships'
 
 # sudo -i clears XDG_RUNTIME_DIR while the owner's session bus still exists at
@@ -165,7 +165,7 @@ with socket.socket(socket.AF_UNIX) as bus:
     bus.bind(str(runtime/'bus'))
     subprocess.run([str(script)], env=env, check=True)
     assert '--user' not in Path(env['CALLS']).read_text(), 'no user-bus call without XDG_RUNTIME_DIR'
-    assert (Path(env['HOME'])/'.config/systemd/user/graphical-session.target.wants/omarchy-asahi-mic.service').is_symlink()
+    assert (Path(env['HOME'])/'.config/systemd/user/graphical-session.target.wants/omarchy-aurora-mic.service').is_symlink()
 PY
 pass 'user setup skips the user bus when sudo cleared XDG_RUNTIME_DIR'
 

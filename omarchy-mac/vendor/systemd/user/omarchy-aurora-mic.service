@@ -1,5 +1,5 @@
 [Unit]
-Description=Reconcile the Asahi microphone stereo mapping
+Description=Reconcile the Aurora microphone stereo mapping
 After=pipewire.service pipewire-pulse.service wireplumber.service
 PartOf=graphical-session.target
 Wants=pipewire.service pipewire-pulse.service wireplumber.service
@@ -7,7 +7,7 @@ Wants=pipewire.service pipewire-pulse.service wireplumber.service
 [Service]
 Type=simple
 ExecCondition=/usr/bin/omarchy-hw-apple-silicon
-ExecStart=/usr/bin/omarchy-audio-asahi-mic-map --watch
+ExecStart=/usr/bin/omarchy-audio-aurora-mic-map --watch
 Restart=on-failure
 RestartSec=2
 

@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# omarchy:summary=Reconcile the Asahi microphone stereo mapping
+# omarchy:summary=Reconcile the Aurora microphone stereo mapping
 # omarchy:group=audio
 # omarchy:args=[--watch|--save-state]
 # omarchy:hidden=true
@@ -21,7 +21,7 @@ import time
 import uuid
 
 # The mapping is a typed stereo source: pipewire-pulse's remap source, a
-# loopback whose capture stream records asahi-audio's mono DSP microphone and
+# loopback whose capture stream records aurora-audio's mono DSP microphone and
 # whose other side is an Audio/Source with front-left and front-right, like a
 # stock microphone. The desktop shell drives such a source's volume, mute and
 # level meter as it does any other; it gives an Audio/Source/Virtual (the
@@ -31,24 +31,24 @@ import uuid
 # Earlier still the mapping was a null sink whose monitor was the default
 # input, but pipewire-pulse clients that name no device (most apps) were then
 # linked to the default sink's monitor instead: silence (#99).
-MAPPING = 'omarchy_asahi_mic'
+MAPPING = 'omarchy_aurora_mic'
 CAPTURE = 'input.' + MAPPING
 LEGACY = MAPPING + '.monitor'
 VIRTUAL = 'media.class=Audio/Source/Virtual'
-OWNER = 'omarchy.asahi-mic.owner'
-ROUTE_CLIENT = 'omarchy-asahi-mic-route'
+OWNER = 'omarchy.aurora-mic.owner'
+ROUTE_CLIENT = 'omarchy-aurora-mic-route'
 DSP = re.compile(r'effect_output\.j[0-9]+-mic')
-# asahi-audio's mono DSP output: AUX0, or MONO since asahi-audio ab1b469.
+# aurora-audio's mono DSP output: AUX0, or MONO since aurora-audio ab1b469.
 DSP_PORTS = ('capture_AUX0', 'capture_MONO')
 # The microphone array's ALSA card, present even when its DSP graph is not,
-# and asahi-audio's WirePlumber rules, which name the cards it builds one for.
+# and aurora-audio's WirePlumber rules, which name the cards it builds one for.
 ARRAY = re.compile(r'\[(AppleJ[0-9]+(?:HPAI|AOP)) *\]')
 ASOUND_CARDS = Path('/proc/asound/cards')
 WIREPLUMBER_CONF = Path('/usr/share/wireplumber/wireplumber.conf.d')
 # What the DSP graph is built from. An update that changes them (a plugin the
 # graph lacked) brings no audio event: WirePlumber builds the graph only when
 # the array's node appears, so the mapper restarts it.
-AUDIO_FILES = (Path('/usr/lib/lv2'), Path('/usr/share/asahi-audio'), Path('/usr/share/wireplumber/wireplumber.conf.d'))
+AUDIO_FILES = (Path('/usr/lib/lv2'), Path('/usr/share/aurora-audio'), Path('/usr/share/wireplumber/wireplumber.conf.d'))
 # A watcher with no record may be the first run after the update that brought
 # the missing files: it looks once, this long after starting.
 FIRST_LOOK = 30.0
@@ -110,7 +110,7 @@ class Audio:
     def modules(self):
         # PipeWire's pactl JSON module rows omit the numeric index. The short
         # format retains the load-module identity needed for scoped rollback.
-        # A multi-line module argument (module-rt from asahi-audio's PipeWire
+        # A multi-line module argument (module-rt from aurora-audio's PipeWire
         # config) continues on lines without an index; they are not modules.
         result = []
         for line in self.run('pactl', 'list', 'short', 'modules').splitlines():
@@ -130,7 +130,7 @@ class Audio:
         time.sleep(0.1)
 
     def array(self):
-        # An array card asahi-audio builds a DSP microphone for.
+        # An array card aurora-audio builds a DSP microphone for.
         try:
             cards = ARRAY.findall(ASOUND_CARDS.read_text())
             rules = ''.join(path.read_text(errors='replace') for path in sorted(WIREPLUMBER_CONF.glob('*.conf')))
@@ -154,7 +154,7 @@ class Audio:
         # Samples are inspected, never kept. None: nothing could be read.
         try:
             process = subprocess.Popen(['parec', '--device=' + source, '--raw', '--format=float32le', '--channels=2',
-                                        '--rate=48000', '--latency-msec=20', '--client-name=omarchy-asahi-mic-probe'],
+                                        '--rate=48000', '--latency-msec=20', '--client-name=omarchy-aurora-mic-probe'],
                                        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         except OSError:
             return None
@@ -407,7 +407,7 @@ def port_usable(device):
 
 
 def real_inputs(sources):
-    # A monitor only repeats a sink, asahi-audio's raw array (RawMics) is
+    # A monitor only repeats a sink, aurora-audio's raw array (RawMics) is
     # uncalibrated, and the mapping carries only the array: none of them can
     # stand in for it. WirePlumber ignores a default whose port is unplugged.
     def monitor(source):
@@ -521,7 +521,7 @@ def outage_due():
 
 def description():
     # The name apps show for the microphone, as macOS words it: the family, not
-    # the board code asahi-audio puts in its own nodes.
+    # the board code aurora-audio puts in its own nodes.
     try:
         model = MODEL.read_bytes().decode(errors='replace')
     except OSError:
@@ -555,7 +555,7 @@ def reconcile(audio, state, save_only=False, checked=None):
             if audio.updating():
                 record_installed(True, retry_at=time.monotonic() + 5.0)
             else:
-                updated = audio.array() and not card_disabled(audio) and repair_graph(audio, 'audio files changed while the Asahi DSP microphone was missing', force=True)
+                updated = audio.array() and not card_disabled(audio) and repair_graph(audio, 'audio files changed while the Aurora DSP microphone was missing', force=True)
                 if updated == DEFERRED:
                     record_installed(True, retry_at=time.monotonic() + 30.0)
                 else:
@@ -576,7 +576,7 @@ def reconcile(audio, state, save_only=False, checked=None):
             if outage['since'] is None:
                 outage['since'] = time.monotonic()
             elif not outage['notified'] and time.monotonic() - outage['since'] >= OUTAGE_GRACE:
-                repaired = not outage['repaired'] and not card_disabled(audio) and repair_graph(audio, 'the Asahi DSP microphone is missing')
+                repaired = not outage['repaired'] and not card_disabled(audio) and repair_graph(audio, 'the Aurora DSP microphone is missing')
                 if repaired is True:
                     outage.update(since=time.monotonic(), repaired=True)
                 elif repaired == DEFERRED:
@@ -585,7 +585,7 @@ def reconcile(audio, state, save_only=False, checked=None):
                 else:
                     outage['notified'] = True
                     audio.notify('Built-in microphone unavailable', 'Click to restart audio', *RESTART_AUDIO)
-        raise Deferred('No Asahi DSP microphone is present; user service will retry if an array appears')
+        raise Deferred('No Aurora DSP microphone is present; user service will retry if an array appears')
     outage.update(since=None, notified=False, repaired=False)
     if installed['pending']:
         record_installed(False)
@@ -631,12 +631,12 @@ def reconcile(audio, state, save_only=False, checked=None):
                 break
             audio.pause()
         else:
-            raise RuntimeError('The Asahi DSP microphone port and the mapping capture ports must be ready')
+            raise RuntimeError('The Aurora DSP microphone port and the mapping capture ports must be ready')
         if module is not None:
             restore_gain(audio, state)
         def validate_endpoints(graph):
             if dsp_port(graph, dsp) != output or capture_inputs(graph) != inputs:
-                raise RuntimeError('Asahi microphone endpoints changed during mapping')
+                raise RuntimeError('Aurora microphone endpoints changed during mapping')
         # WirePlumber links the mono port to the left (or negotiated MONO)
         # side as the remap source's target: wait for that link rather than
         # race it, and link the right side, which WirePlumber never does.
@@ -670,7 +670,7 @@ def reconcile(audio, state, save_only=False, checked=None):
                 break
             audio.pause()
         else:
-            raise RuntimeError('Asahi microphone stereo links did not become ready')
+            raise RuntimeError('Aurora microphone stereo links did not become ready')
         current_input = audio.run('pactl', 'get-default-source')
         key = (output, *inputs)
         # A mapping the default route was seen to bypass is not selected again,
@@ -695,7 +695,7 @@ def reconcile(audio, state, save_only=False, checked=None):
         graph = audio.graph()
         validate_endpoints(graph)
         if not all(links(graph, output, input_) for input_ in inputs):
-            raise RuntimeError('Asahi microphone links changed before selecting input')
+            raise RuntimeError('Aurora microphone links changed before selecting input')
         # Read the user's choice after the final graph query so a device change
         # during that query is not overwritten. Pulse has no atomic compare/set.
         if audio.run('pactl', 'get-default-source') == current_input:
@@ -709,9 +709,9 @@ def reconcile(audio, state, save_only=False, checked=None):
         if not muted_claim and not (select_mapping and returning and sampled is not True):
             fallback.unlink(missing_ok=True)
         if sampled is None:
-            problem = 'Could not sample the Asahi microphone stereo mapping; the default input is unchanged'
+            problem = 'Could not sample the Aurora microphone stereo mapping; the default input is unchanged'
         elif sampled is False:
-            problem = 'Asahi microphone stereo mapping carries no signal; it is not the default input'
+            problem = 'Aurora microphone stereo mapping carries no signal; it is not the default input'
         elif changed_input or (current_input == MAPPING and ('route',) + key not in (checked or ())):
             # The explicit sample above cannot show where apps that name no
             # device are linked (#99). Check that route once per mapping.
@@ -722,7 +722,7 @@ def reconcile(audio, state, save_only=False, checked=None):
                 if checked is not None:
                     checked.add(('misroute',) + key)
                 audio.run('pactl', 'set-default-source', dsp)
-                problem = 'Apps recording from the default input reach ' + ', '.join(sorted(map(str, feeds))) + ', not the Asahi microphone mapping; the default input is the DSP'
+                problem = 'Apps recording from the default input reach ' + ', '.join(sorted(map(str, feeds))) + ', not the Aurora microphone mapping; the default input is the DSP'
         # Existing DSP gain/mute is never reset. Save only the owned mapping so
         # a new module after a daemon restart can recover it.
         save_state(audio, state)
@@ -731,7 +731,7 @@ def reconcile(audio, state, save_only=False, checked=None):
             try:
                 action()
             except Exception as error:
-                print('Asahi microphone rollback incomplete: ' + str(error), file=sys.stderr)
+                print('Aurora microphone rollback incomplete: ' + str(error), file=sys.stderr)
         def restore_changed_input():
             if changed_input or module is not None:
                 restore_input()
@@ -760,7 +760,7 @@ def reconcile(audio, state, save_only=False, checked=None):
 
 @contextlib.contextmanager
 def mapping_lock(runtime):
-    with (runtime / 'omarchy-asahi-mic.lock').open('a') as lock:
+    with (runtime / 'omarchy-aurora-mic.lock').open('a') as lock:
         deadline = time.monotonic() + 15
         while True:
             try:
@@ -768,7 +768,7 @@ def mapping_lock(runtime):
                 break
             except BlockingIOError:
                 if time.monotonic() >= deadline:
-                    raise RuntimeError('Another Asahi microphone repair is still running')
+                    raise RuntimeError('Another Aurora microphone repair is still running')
                 time.sleep(0.1)
         yield
 
@@ -1060,15 +1060,15 @@ def main():
     if subprocess.run(['omarchy-hw-apple-silicon']).returncode:
         return 0
     runtime = Path(os.environ.get('XDG_RUNTIME_DIR', '/run/user/' + str(os.getuid())))
-    state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'omarchy/asahi-mic-gain.json'
+    state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'omarchy/aurora-mic-gain.json'
     checked = set()
-    Audio.stamp = runtime / 'omarchy-asahi-mic.repaired'
+    Audio.stamp = runtime / 'omarchy-aurora-mic.repaired'
     operation = lambda save=False: run_once(Audio(), runtime, state, args.save_state or save, checked)
     if args.watch:
         # Let a service stop unwind through supervise so the subscriber exits too.
         signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
         supervise(operation, program=Program(os.path.abspath(sys.argv[0])),
-                  changed=Installed(runtime / 'omarchy-asahi-mic.installed').changed)
+                  changed=Installed(runtime / 'omarchy-aurora-mic.installed').changed)
     else:
         try:
             operation()
@@ -1076,7 +1076,7 @@ def main():
             print(error, file=sys.stderr)
             return 75
         except Exception as error:
-            print('Asahi microphone mapping failed: ' + str(error), file=sys.stderr)
+            print('Aurora microphone mapping failed: ' + str(error), file=sys.stderr)
             return 1
     return 0
 

@@ -114,7 +114,7 @@ if tr '\0' '\n' <"$tree/compatible" | grep -Fxq apple,t8140 && ! root_key_instal
   # a failure, even one the extractor reports after its rename, takes it back
   # with the agreement.
   rebuilt=1
-  "$python" -I "$helpers/touchid-root-key" --archive "$esp/asahi/all_firmware.tar.gz" --container "$container" \
+  "$python" -I "$helpers/touchid-root-key" --archive "$esp/aurora/all_firmware.tar.gz" --container "$container" \
     -o "$firmware/updates/apple/msrk-j700.bin" || fail "this Mac's sensor key could not be read"
 fi
 
