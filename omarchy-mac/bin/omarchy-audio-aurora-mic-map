@@ -48,7 +48,9 @@ WIREPLUMBER_CONF = Path('/usr/share/wireplumber/wireplumber.conf.d')
 # What the DSP graph is built from. An update that changes them (a plugin the
 # graph lacked) brings no audio event: WirePlumber builds the graph only when
 # the array's node appears, so the mapper restarts it.
-AUDIO_FILES = (Path('/usr/lib/lv2'), Path('/usr/share/aurora-audio'), Path('/usr/share/wireplumber/wireplumber.conf.d'))
+# LEGACY-ASAHI(2027-02-28): audio packages from before the rename install /usr/share/asahi-audio.
+AUDIO_FILES = (Path('/usr/lib/lv2'), Path('/usr/share/aurora-audio'), Path('/usr/share/asahi-audio'),
+               Path('/usr/share/wireplumber/wireplumber.conf.d'))
 # A watcher with no record may be the first run after the update that brought
 # the missing files: it looks once, this long after starting.
 FIRST_LOOK = 30.0
@@ -1061,6 +1063,10 @@ def main():
         return 0
     runtime = Path(os.environ.get('XDG_RUNTIME_DIR', '/run/user/' + str(os.getuid())))
     state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'omarchy/aurora-mic-gain.json'
+    # LEGACY-ASAHI(2027-02-28): the saved gain used to be asahi-mic-gain.json; carry it over once.
+    legacy_state = state.with_name('asahi-mic-gain.json')
+    if not state.exists() and legacy_state.exists():
+        legacy_state.replace(state)
     checked = set()
     Audio.stamp = runtime / 'omarchy-aurora-mic.repaired'
     operation = lambda save=False: run_once(Audio(), runtime, state, args.save_state or save, checked)

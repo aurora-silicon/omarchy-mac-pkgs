@@ -143,6 +143,29 @@ rm "$wants"
 [[ ! -s $CALLS ]] || fail 'repeat setup does not reenable disabled Wi-Fi recovery'
 pass 'explicit disables survive repeated setup'
 
+# LEGACY-ASAHI(2027-02-28): a user set up while the mapper was omarchy-asahi-mic.service keeps it
+# enabled under the new name, and a mask on the old name stays a mask.
+for name in carol dave; do
+  export HOME="$work/$name"
+  units="$HOME/.config/systemd/user"
+  mkdir -p "$units/graphical-session.target.wants" "$HOME/.local/state/omarchy"
+  : >"$HOME/.local/state/omarchy/mac-microphone-configured"
+done
+export HOME="$work/carol"
+units="$HOME/.config/systemd/user"
+ln -s /usr/lib/systemd/user/omarchy-asahi-mic.service "$units/graphical-session.target.wants/omarchy-asahi-mic.service"
+"$user_setup" "$stage"
+[[ $(readlink "$units/graphical-session.target.wants/omarchy-aurora-mic.service") == /usr/lib/systemd/user/omarchy-aurora-mic.service &&
+  ! -e $units/graphical-session.target.wants/omarchy-asahi-mic.service &&
+  ! -L $units/graphical-session.target.wants/omarchy-asahi-mic.service ]] || fail 'a mapper enabled before the rename stays enabled'
+export HOME="$work/dave"
+units="$HOME/.config/systemd/user"
+ln -s /dev/null "$units/omarchy-asahi-mic.service"
+"$user_setup" "$stage"
+[[ $(readlink "$units/omarchy-aurora-mic.service") == /dev/null &&
+  ! -L $units/graphical-session.target.wants/omarchy-aurora-mic.service ]] || fail 'a mask from before the rename stays a mask'
+pass 'a mapper enabled or masked under its old unit name keeps that state'
+
 [[ -f $stage/usr/share/wireplumber/wireplumber.conf.d/aurora-audio-no-suspend.conf ]] || fail 'the vendor speaker policy ships'
 pass 'the vendor speaker no-suspend policy ships'
 

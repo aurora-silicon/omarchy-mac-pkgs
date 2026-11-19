@@ -191,6 +191,11 @@ python=no-such-python
 unset python
 rm "$fixture/esp/aurora/all_firmware.tar.gz"
 [[ $(eligibility) == "unsupported:no-root-key" ]] || fail "a Neo without its factory records on the ESP can't rebuild its sensor key"
+# LEGACY-ASAHI(2027-02-28): an install from before the rename keeps the records in asahi/.
+mkdir -p "$fixture/esp/asahi"
+cp "$work/factory/all_firmware.tar.gz" "$fixture/esp/asahi/"
+[[ $(eligibility) == "available" ]] || fail "a Neo whose factory records are still in the ESP's asahi/ is available"
+rm -r "$fixture/esp/asahi"
 mkdir -p "$fixture/firmware/updates/apple"
 cp "$work/factory/key.bin" "$fixture/firmware/updates/apple/msrk-j700.bin"
 [[ $(eligibility) == "available" ]] || fail "a Neo whose sensor key is installed needs nothing else"

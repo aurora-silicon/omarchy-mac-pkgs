@@ -304,7 +304,11 @@ def main():
         print("touchid-root-key: this is not an Apple Silicon Mac", file=sys.stderr)
         return 1
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--archive", default="/boot/efi/aurora/all_firmware.tar.gz")
+    # LEGACY-ASAHI(2027-02-28): installs from before the rename keep the records in asahi/.
+    default_archive = next((p for p in ("/boot/efi/aurora/all_firmware.tar.gz",
+                                        "/boot/efi/asahi/all_firmware.tar.gz") if os.path.exists(p)),
+                           "/boot/efi/aurora/all_firmware.tar.gz")
+    parser.add_argument("--archive", default=default_archive)
     parser.add_argument("--container", default="/dev/disk/by-partlabel/iBootSystemContainer")
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("-o", "--output")

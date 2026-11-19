@@ -15,12 +15,13 @@ native_ready() {
   local path driver
   native_display=false
   native_gpu=false
+  # LEGACY-ASAHI(2027-02-28): kernels from before the rename bind the G15 GPU as asahi-g15.
   for path in "$sys"/class/drm/*; do
     [[ ${path##*/} =~ ^(card[0-9]+|renderD[0-9]+)$ ]] || continue
     driver=$(readlink -f "$path/device/driver") || continue
     if [[ ${path##*/} == card* && ${driver##*/} == "apple-drm" ]]; then
       native_display=true
-    elif [[ ${path##*/} == renderD* && ${driver##*/} == "aurora-g15" && -e $dev/dri/${path##*/} ]]; then
+    elif [[ ${path##*/} == renderD* && ( ${driver##*/} == "aurora-g15" || ${driver##*/} == "asahi-g15" ) && -e $dev/dri/${path##*/} ]]; then
       native_gpu=true
     fi
   done
