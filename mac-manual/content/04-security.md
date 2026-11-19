@@ -49,9 +49,9 @@ _Setup > Reset Computer_ hands a Mac to its next owner, as described in [Securit
 
 A clean system expects the kernel it was installed with. When the kernel on the boot partition has moved on since, the reset refuses rather than activating a root that kernel cannot boot.
 
-### Reusing an existing J613 identity
+### Reusing an existing Touch ID identity
 
-For an administrator migrating a working J613 installation, `/usr/lib/omarchy-mac/touchid-enable --existing` records consent and loads the existing bag with provisioning disabled. This is separate from fingerprint setup: do not enrol again. It requires the installed calibration, six existing state records and the ownership journal. It never copies state or carves calibration. An already loaded driver requires a cold boot before adoption. The candidate kernel must support the `trusted_keys` and `filevault_api` options; older kernels refuse those options. Normal first-time setup is unchanged.
+For an administrator migrating a working Touch ID installation on an eligible Mac, `/usr/lib/omarchy-mac/touchid-enable --existing` records consent and loads the existing bag with provisioning disabled. This is separate from fingerprint setup: do not enrol again. It requires the installed calibration, six existing state records and the ownership journal. On a Mac that needs a sensor key, the key must already be installed and valid. Adoption leaves the saved state, calibration, and sensor key in place. An already loaded driver requires a cold boot before adoption. The candidate kernel must support the `trusted_keys` and `filevault_api` options; older kernels refuse those options. Normal first-time setup is unchanged.
 
 Two Linux roots must use the same current SEP records and fprint directory before either can load the driver. Snapshots are not state backups: never replace a current host store with an older root's copy. Mount the authoritative state globally before the load and activation units; a service-only mount namespace does not redirect the kernel's file opens. A missing shared mount must block both activation and fprintd. Do not reset keys or use enrolment to repair a migration.
 
