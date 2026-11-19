@@ -98,7 +98,6 @@ eligibility=$("$helpers/touchid-eligibility")
 # Adoption never carves calibration or creates an identity. Check metadata,
 # leaving the driver's readers to validate the existing records.
 if (( existing )); then
-  tr '\0' '\n' <"$tree/compatible" | grep -Fxq apple,j613 || fail "existing-bag adoption is qualified only for J613"
   [[ ! -d $module ]] || fail "restart before adopting an existing bag"
   state_directory=${keybag%/*}
   for name in aurora-sep-keybag.bin aurora-sep-host-state.bin aurora-sep-refkey.bin \
@@ -131,7 +130,10 @@ if ! installed "$calibration"; then
     { rm -f "$carved.new"; fail "this Mac's calibration could not be read"; }
   chmod 0644 "$carved.new" && mv -f "$carved.new" "$carved" || { rm -f "$carved.new"; fail "this Mac's calibration could not be installed"; }
 fi
-if (( ! existing )) && tr '\0' '\n' <"$tree/compatible" | grep -Fxq apple,t8140 && ! root_key_installed; then
+if tr '\0' '\n' <"$tree/compatible" | grep -Fxq apple,t8140 && ! root_key_installed; then
+  if (( existing )); then
+    fail "the installed sensor key is missing or invalid; adoption never rebuilds it"
+  fi
   # Rebuilt only now, from the factory records asahi-installer leaves on the
   # ESP and checked against this Mac's iBoot System Container; root-only, and
   # it takes its name only once whole. Turning Touch ID off deletes it.

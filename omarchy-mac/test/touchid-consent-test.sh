@@ -665,8 +665,11 @@ fi
 STUB
 chmod +x "$fixture/bin/stat"
 existing_fixture() {
-  machine apple,j613 apple,t8122 apple,arm-platform
-  rm -f "$fixture"/aurora-sep-*.bin "$fixture"/apple-sep-catacomb-*.bin
+  local file name
+  "$@"
+  for file in "$fixture"/aurora-sep-*.bin "$fixture"/apple-sep-catacomb-*.bin; do
+    rm -f "$file"
+  done
   mkdir -p "$fixture/firmware/vendor/apple"
   printf calibration >"$fixture/firmware/vendor/apple/mesa_calibration.bin"
   for name in aurora-sep-keybag.bin aurora-sep-host-state.bin aurora-sep-refkey.bin \
@@ -677,15 +680,18 @@ existing_fixture() {
   : >"$fixture/aurora-sep-xart-owned.bin"
   echo ready >"$fixture/activation"
 }
-existing_fixture
-before=$(sha256sum "$fixture"/*.bin)
-run touchid-enable --existing >/dev/null || fail 'an existing J613 bag is adopted'
-[[ $(sha256sum "$fixture"/*.bin) == "$before" ]] || fail 'adoption leaves every state byte unchanged'
-grep -Fxq 'options apple_sep xart_writes=1 provision_keybag=0 xart_guard=1 trusted_keys=0 filevault_api=0' "$fixture/options-at-load" ||
-  fail 'adoption disables provisioning and optional key APIs with the qualified guard'
-! grep -q calibration "$fixture/calls" || fail 'adoption never carves calibration'
+for spec in 'apple,j613 apple,t8122' 'apple,j414c apple,t6021'; do
+  read -r board chip <<<"$spec"
+  existing_fixture machine "$board" "$chip" apple,arm-platform
+  before=$(sha256sum "$fixture"/*.bin)
+  run touchid-enable --existing >/dev/null || fail "an existing bag is adopted on $board"
+  [[ $(sha256sum "$fixture"/*.bin) == "$before" ]] || fail 'adoption leaves every state byte unchanged'
+  grep -Fxq 'options apple_sep xart_writes=1 provision_keybag=0 xart_guard=1 trusted_keys=0 filevault_api=0' "$fixture/options-at-load" ||
+    fail 'adoption disables provisioning and optional key APIs with the qualified guard'
+  ! grep -q calibration "$fixture/calls" || fail 'adoption never carves calibration'
+done
 for refusal in absent empty symlink hardlink writable calibration recovery loaded; do
-  existing_fixture
+  existing_fixture machine apple,j414c apple,t6021 apple,arm-platform
   file=$fixture/aurora-sep-host-state.bin
   case $refusal in
     absent) rm "$file" ;;
@@ -701,6 +707,12 @@ for refusal in absent empty symlink hardlink writable calibration recovery loade
     ! grep -qE 'modprobe|calibration' "$fixture/calls" || fail "unsafe existing-bag $refusal is refused before consent or load"
   rm -f "$fixture/second-link"
 done
+existing_fixture neo
+! run touchid-enable --existing >/dev/null 2>&1 && [[ ! -e $fixture/etc/touchid-on ]] &&
+  [[ -z $(key_copies) ]] && ! grep -q modprobe "$fixture/calls" ||
+  fail 'adoption refuses a Neo whose sensor key would have to be rebuilt'
+cp "$work/factory/key.bin" "$fixture/firmware/vendor/apple/msrk-j700.bin"
+run touchid-enable --existing >/dev/null || fail 'a Neo with an installed key can adopt its existing bag'
 pass 'existing-bag adoption never provisions, copies state, carves calibration or retries a loaded module'
 
 if command -v systemd-analyze >/dev/null; then
