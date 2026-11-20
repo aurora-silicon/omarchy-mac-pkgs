@@ -17,6 +17,23 @@ with tempfile.TemporaryDirectory() as tmp:
  for trace in ('0', '1'):
   (diag/'policy').write_text(' '.join(k+'='+v for k,v in {**values,'xarm_trace':trace}.items())+'\n')
   assert p.report(options,driver,'',True)['status']=='verified'
+ # linux#2591 removed provision_keybag: diag/policy always reads 1 and the loader ignores our 0.
+ post={**values,'provision_keybag':'1','xarm_trace':'0'};(diag/'policy').write_text(' '.join(k+'='+v for k,v in post.items())+'\n')
+ removed="apple_sep: unknown parameter 'xart_writes' ignored\napple_sep: unknown parameter 'provision_keybag' ignored\n"
+ result=p.report(options,driver,removed,True)
+ assert result['status']=='verified' and not result['mismatches'],result
+ assert p.report(options,driver,'',True)['status']=='mismatch','an older kernel reporting 1 ignored the configured 0'
+ assert p.report(options,driver,removed.splitlines()[0],True)['status']=='mismatch','only the provision_keybag parameter is exempt'
+ created=removed+'apple_sep 28.sep: sks: identity keybag provisioned\n'
+ assert p.report(options,driver,created,True)['status']=='mismatch','a new identity is never adopted'
+ (diag/'policy').write_text(' '.join(k+'='+v for k,v in {**post,'xart_writes':'0'}.items())+'\n')
+ assert p.report(options,driver,removed,True)['status']=='mismatch','other fields are still checked'
+ (diag/'policy').write_text(' '.join(k+'='+v for k,v in post.items())+'\n')
+ kept=options.read_text();options.write_text('options apple_sep xart_writes=1 xart_guard=1 trusted_keys=0 filevault_api=0\n')
+ assert p.report(options,driver,removed,True)['status']=='mismatch','the configured 0 stays required for older kernels'
+ options.write_text('options apple_sep xart_writes=1 provision_keybag=1\n')
+ assert p.report(options,driver,removed)['status']=='observed','the normal profile is unchanged on newer kernels'
+ options.write_text(kept)
  (diag/'policy').unlink();(diag/'xart').write_text('enabled\n');(diag/'xart_guard').write_text('1\n')
  log='apple_sep: xART guard level 1\napple_sep: writes ENABLED\napple_sep: xART: using /chosen/apfs-preboot-uuid\n'
  result=p.report(options,driver,log,True)
@@ -33,5 +50,5 @@ with tempfile.TemporaryDirectory() as tmp:
  assert result['status']=='mismatch' and '123456789' not in json.dumps(result)
  options.write_text('options apple_sep xart_writes=1 provision_keybag=1\n')
  assert p.report(options,driver,'')['status']=='observed','normal first-time profile stays unchanged'
-print('ok - cached policy, old-ABI diagnostics/logs and missing parameter files stay distinct; no identity values leaked')
+print('ok - cached policy, post-#2591 provision_keybag=1, old-ABI diagnostics/logs and missing parameter files stay distinct; no identity values leaked')
 PY
