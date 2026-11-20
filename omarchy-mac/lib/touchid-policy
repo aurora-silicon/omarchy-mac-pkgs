@@ -11,6 +11,9 @@ import subprocess
 EXPECTED = dict(xart_writes='1', provision_keybag='0', xart_guard='1',
                 trusted_keys='0', filevault_api='0')
 SAFE_KEYS = set(EXPECTED) | {'refkey_v2', 'identity_override', 'identity_source'}
+# Kernels without the provision_keybag parameter always report 1 and keep an
+# existing bag without a write; only the module loader's own message says so.
+REMOVED = re.compile(r"apple[_-]sep: unknown parameter '(provision_keybag|xart_writes)' ignored")
 
 
 def configured(path):
@@ -59,7 +62,11 @@ def readback(driver, log):
     for line in log.splitlines():
         if 'apple_sep' not in line and 'apple-sep' not in line:
             continue
-        if 'writes ENABLED' in line:
+        if (match := REMOVED.search(line)):
+            value = (match[1] + '_parameter', 'removed')
+        elif 'sks: identity keybag provisioned' in line or 'creating the identity keybag again' in line:
+            value = ('keybag', 'created')
+        elif 'writes ENABLED' in line:
             value = ('xart_writes', '1')
         elif 'writes disabled' in line:
             value = ('xart_writes', '0')
@@ -85,10 +92,14 @@ def report(options, driver, log, existing=False):
     active, source = readback(driver, log)
     mismatches, warnings = [], []
     if existing:
+        # Configured 0 keeps older kernels from provisioning; newer ones ignore it.
+        always_provisions = active.get('provision_keybag_parameter') == 'removed'
         for key, expected in EXPECTED.items():
             if intended.get(key) != expected:
                 mismatches.append('configured ' + key + ' differs from existing-state policy')
             observed = active.get(key)
+            if key == 'provision_keybag' and always_provisions and observed == '1':
+                continue
             if observed is not None and observed != expected:
                 mismatches.append('active ' + key + ' contradicts existing-state policy')
         for key in ('refkey_v2', 'identity_override'):
@@ -96,6 +107,8 @@ def report(options, driver, log, existing=False):
                 mismatches.append(key + ' is enabled')
         if active.get('identity_source') in ('override', 'missing'):
             mismatches.append('active identity source is not the device tree')
+        if active.get('keybag') == 'created':
+            mismatches.append('the driver created an identity keybag during existing-state adoption')
         missing = [key for key in EXPECTED if key not in active]
         if missing:
             warnings.append('Driver does not expose all selected fields: ' + ', '.join(missing) + '; configured values are not active readback')
