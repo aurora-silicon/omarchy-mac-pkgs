@@ -178,7 +178,7 @@ pass 'Chromium-family browsers decode in software on Apple Silicon, once, joinin
 
 : >"$CALLS"
 OMARCHY_MAC_ROOT=$stage "$stage/usr/lib/omarchy/mac/setup-user" || fail 'the setup-user entrypoint runs user setup'
-[[ -L $HOME/.config/systemd/user/graphical-session.target.wants/omarchy-asahi-mic.service ]] || fail 'the setup-user entrypoint sets up the microphone'
+[[ -L $HOME/.config/systemd/user/graphical-session.target.wants/omarchy-aurora-mic.service ]] || fail 'the setup-user entrypoint sets up the microphone'
 OMARCHY_MAC_ROOT=$stage "$stage/usr/lib/omarchy/mac/setup-system" image-first-boot || fail 'the setup-system entrypoint runs system setup'
 ! grep -q '^wrap' "$CALLS" || fail 'a staging root skips the Electron launchers'
 env -i PATH="$PATH" CALLS="$CALLS" OMARCHY_MAC_ROOT="$stage" "$stage/usr/lib/omarchy/mac/setup-user" ||

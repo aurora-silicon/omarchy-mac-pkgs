@@ -26,18 +26,18 @@ for board in laptops:
     assert hides('effect_output.j%s-convolver' % board, []), board
     assert hides('audio_effect.j%s-mic' % board, []), board
     assert not hides('audio_effect.j%s-convolver' % board, []), 'the speakers stay: ' + board
-    assert hides(mic, [mic, 'omarchy_asahi_mic']), 'the mono microphone hides behind its mapping: ' + board
+    assert hides(mic, [mic, 'omarchy_aurora_mic']), 'the mono microphone hides behind its mapping: ' + board
     assert not hides(mic, [mic]), 'the mono microphone stays without its mapping: ' + board
 for desktop in ('mini', 'studio'):
     assert hides('effect_output.%s-convolver' % desktop, []), desktop
     assert not hides('audio_effect.%s-convolver' % desktop, []), desktop
 assert hides('alsa_output.platform-sound.RawSpeakers', []) and hides('alsa_input.platform-sound.RawMics', [])
 # The typed mapping's own capture of the mono DSP microphone is no app recording.
-assert hides('input.omarchy_asahi_mic', [])
-present = ['omarchy_asahi_mic', 'effect_output.j416-mic']
-for name in ('omarchy_asahi_mic', 'alsa_output.platform-sound.HiFi__Headphones__sink', 'alsa_input.platform-sound.HiFi__Headset__source',
+assert hides('input.omarchy_aurora_mic', [])
+present = ['omarchy_aurora_mic', 'effect_output.j416-mic']
+for name in ('omarchy_aurora_mic', 'alsa_output.platform-sound.HiFi__Headphones__sink', 'alsa_input.platform-sound.HiFi__Headset__source',
              'effect_output.eq6', 'effect_output.j416-convolver-eq', 'my-audio_effect.j416-mic', 'effect_output.j416-mic.monitor',
-             'alsa_output.platform-sound.RawSpeakers.monitor', 'input.omarchy_asahi_mic.monitor', 'Firefox'):
+             'alsa_output.platform-sound.RawSpeakers.monitor', 'input.omarchy_aurora_mic.monitor', 'Firefox'):
     assert not hides(name, present), name
 PY
-pass 'the audio hints hide asahi-audio DSP internals and the mapping capture, and the mono microphone only behind its mapping'
+pass 'the audio hints hide aurora-audio DSP internals and the mapping capture, and the mono microphone only behind its mapping'

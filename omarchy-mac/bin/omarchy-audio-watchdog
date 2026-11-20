@@ -14,7 +14,7 @@ import subprocess
 import sys
 import time
 
-# WirePlumber 0.5.17 tears down asahi-audio's DSP filter chains when the cards
+# WirePlumber 0.5.17 tears down aurora-audio's DSP filter chains when the cards
 # go away, as they do at every logout (logind hands /dev/snd to the greeter).
 # That teardown can crash WirePlumber (systemd restarts it) or wedge its main
 # thread at full CPU, which systemd never notices: every pactl call and app then

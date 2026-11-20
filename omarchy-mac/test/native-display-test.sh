@@ -90,13 +90,13 @@ compatibility apple,j514c apple,t6031
 pass 'exact board, SoC and platform gates; no enable parameter'
 
 driver card0 simpledrm
-driver renderD128 asahi-g15
+driver renderD128 aurora-g15
 touch "$work/dev/dri/renderD128"
 waiting 'simpledrm is not the native display'
 driver card0 apple-drm
 driver renderD128 other-gpu
 waiting 'another render driver is not the native GPU'
-driver renderD128 asahi-g15
+driver renderD128 aurora-g15
 rm "$work/dev/dri/renderD128"
 waiting 'sysfs alone is insufficient before the render device exists'
 touch "$work/dev/dri/renderD128"

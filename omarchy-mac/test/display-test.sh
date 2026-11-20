@@ -54,7 +54,7 @@ export HOME="$work/home" XDG_RUNTIME_DIR="$work/no-session"
 unset XDG_CONFIG_HOME XDG_STATE_HOME
 looknfeel="$HOME/.config/hypr/looknfeel.lua"
 marker="$HOME/.local/state/omarchy/mac-cursor-configured"
-wants="$HOME/.config/systemd/user/graphical-session.target.wants/omarchy-asahi-mic.service"
+wants="$HOME/.config/systemd/user/graphical-session.target.wants/omarchy-aurora-mic.service"
 software_cursor() {
   if command -v lua >/dev/null; then
     lua - "$looknfeel" <<'LUA'

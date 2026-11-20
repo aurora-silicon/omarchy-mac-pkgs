@@ -145,9 +145,9 @@ machine() {
 neo() {
   machine apple,j700 apple,t8140 apple,arm-platform
   printf 'apple/mesacal-j700.bin\0' >"$tree/soc/spi@39b108000/fingerprint@0/firmware-name"
-  mkdir -p "$fixture/firmware/vendor/apple" "$fixture/esp/asahi"
+  mkdir -p "$fixture/firmware/vendor/apple" "$fixture/esp/aurora"
   printf sealed >"$fixture/firmware/vendor/apple/mesacal-j700.bin"
-  cp "$work/factory/all_firmware.tar.gz" "$fixture/esp/asahi/"
+  cp "$work/factory/all_firmware.tar.gz" "$fixture/esp/aurora/"
 }
 run() {
   PATH="$fixture/bin:$PATH" OMARCHY_MAC_TOUCHID_TREE=$tree OMARCHY_MAC_TOUCHID_FIRMWARE=$fixture/firmware \
@@ -189,8 +189,13 @@ neo
 python=no-such-python
 [[ $(eligibility) == "unsupported:no-root-key" ]] || fail "a Neo without Python can't rebuild its sensor key"
 unset python
-rm "$fixture/esp/asahi/all_firmware.tar.gz"
+rm "$fixture/esp/aurora/all_firmware.tar.gz"
 [[ $(eligibility) == "unsupported:no-root-key" ]] || fail "a Neo without its factory records on the ESP can't rebuild its sensor key"
+# LEGACY-ASAHI(2027-02-28): an install from before the rename keeps the records in asahi/.
+mkdir -p "$fixture/esp/asahi"
+cp "$work/factory/all_firmware.tar.gz" "$fixture/esp/asahi/"
+[[ $(eligibility) == "available" ]] || fail "a Neo whose factory records are still in the ESP's asahi/ is available"
+rm -r "$fixture/esp/asahi"
 mkdir -p "$fixture/firmware/updates/apple"
 cp "$work/factory/key.bin" "$fixture/firmware/updates/apple/msrk-j700.bin"
 [[ $(eligibility) == "available" ]] || fail "a Neo whose sensor key is installed needs nothing else"
@@ -229,7 +234,7 @@ for agreed in no yes; do
   [[ $agreed == no ]] || touch "$fixture/etc/touchid-on"
   run touchid-status
   [[ $agreed == yes || $(<"$fixture/run/touchid") == "available" ]] || fail 'a Neo with its factory records on the ESP is available'
-  [[ -z $(key_copies) && ! -s $fixture/calls ]] && cmp -s "$fixture/esp/asahi/all_firmware.tar.gz" "$work/factory/all_firmware.tar.gz" ||
+  [[ -z $(key_copies) && ! -s $fixture/calls ]] && cmp -s "$fixture/esp/aurora/all_firmware.tar.gz" "$work/factory/all_firmware.tar.gz" ||
     fail "the boot status rebuilds, keeps and loads nothing, and leaves the ESP alone (agreed: $agreed)" "$(key_copies)"
 done
 pass 'the boot status records available or why not, and never turns Touch ID on'
@@ -258,7 +263,7 @@ cmp -s "$installed_key" "$work/factory/key.bin" && [[ $(stat -c %a "$installed_k
 ! grep -Fxq calibration "$fixture/calls" || fail "the Neo's sealed calibration is kept, never carved again"
 neo
 cp "$work/factory/key.bin" "$fixture/firmware/vendor/apple/msrk-j700.bin"
-rm "$fixture/esp/asahi/all_firmware.tar.gz"
+rm "$fixture/esp/aurora/all_firmware.tar.gz"
 run touchid-enable >/dev/null 2>&1 && [[ -z $(key_copies "$fixture/firmware/vendor/apple/msrk-j700.bin") ]] ||
   fail 'a Neo with an installed sensor key turns on without rebuilding it'
 # Records another Mac's, or swapped on the ESP, or that can't be told apart,
@@ -266,8 +271,8 @@ run touchid-enable >/dev/null 2>&1 && [[ -z $(key_copies "$fixture/firmware/vend
 for case in other-container two-seals other-chip truncated; do
   neo
   case $case in
-    two-seals | other-chip) cp "$work/factory/$case.tar.gz" "$fixture/esp/asahi/all_firmware.tar.gz" ;;
-    truncated) head -c "$(($(stat -c %s "$work/factory/all_firmware.tar.gz") / 2))" "$work/factory/all_firmware.tar.gz" >"$fixture/esp/asahi/all_firmware.tar.gz" ;;
+    two-seals | other-chip) cp "$work/factory/$case.tar.gz" "$fixture/esp/aurora/all_firmware.tar.gz" ;;
+    truncated) head -c "$(($(stat -c %s "$work/factory/all_firmware.tar.gz") / 2))" "$work/factory/all_firmware.tar.gz" >"$fixture/esp/aurora/all_firmware.tar.gz" ;;
   esac
   [[ $case == other-container ]] && container=$work/factory/other-isc.img
   ! out=$(run touchid-enable 2>&1) && [[ $out == *"sensor key could not be read"* && -z $(key_copies) && ! -e $fixture/etc/touchid-on ]] &&
@@ -285,7 +290,7 @@ for refusal in "current-differs:differs from the named trust bundle" "misnamed-t
   if [[ $case == no-trust || $case == no-msrk ]]; then
     container=$work/factory/$case-isc.img
   else
-    cp "$work/factory/$case.tar.gz" "$fixture/esp/asahi/all_firmware.tar.gz"
+    cp "$work/factory/$case.tar.gz" "$fixture/esp/aurora/all_firmware.tar.gz"
   fi
   [[ $case == wrong-payload ]] && container=$work/factory/wrong-payload-isc.img
   ! out=$(run touchid-enable 2>&1) && [[ $out == *"sensor key could not be read"* && $out == *"${refusal#*:}"* && -z $(key_copies) ]] ||
@@ -299,7 +304,7 @@ for case in decoy unrelated boundary at-entry-limit; do
   if [[ $case == boundary ]]; then
     container=$work/factory/boundary-isc.img
   else
-    cp "$work/factory/$case.tar.gz" "$fixture/esp/asahi/all_firmware.tar.gz"
+    cp "$work/factory/$case.tar.gz" "$fixture/esp/aurora/all_firmware.tar.gz"
   fi
   out=$(run touchid-enable 2>&1) && cmp -s "$installed_key" "$work/factory/key.bin" ||
     fail "a Neo whose factory records are $case still gets its key" "$out"
@@ -370,7 +375,7 @@ chmod +x "$fixture/bin/broken-python"
 neo
 mkdir -p "${installed_key%/*}"
 printf 'not a key' >"$installed_key"
-rm "$fixture/esp/asahi/all_firmware.tar.gz"
+rm "$fixture/esp/aurora/all_firmware.tar.gz"
 ! out=$(run touchid-enable 2>&1) && [[ $out == *"sensor key could not be read"* && -z $(key_copies) && ! -e $fixture/etc/touchid-on ]] ||
   fail "a broken sensor key that can't be rebuilt is removed, and nothing turns on" "$out; $(key_copies)"
 # One setup or removal at a time: a run that can't take the lock does nothing,
