@@ -12,7 +12,8 @@ EXPECTED = dict(xart_writes='1', provision_keybag='0', xart_guard='1',
                 trusted_keys='0', filevault_api='0')
 SAFE_KEYS = set(EXPECTED) | {'refkey_v2', 'identity_override', 'identity_source'}
 # Kernels without the provision_keybag parameter always report 1 and keep an
-# existing bag without a write; only the module loader's own message says so.
+# existing bag without a write. The module itself says so; the loader's message
+# is the fallback when modinfo can't answer for the loaded driver.
 REMOVED = re.compile(r"apple[_-]sep: unknown parameter '(provision_keybag|xart_writes)' ignored")
 
 
@@ -86,13 +87,33 @@ def readback(driver, log):
     return active, source
 
 
-def report(options, driver, log, existing=False):
+def installed_parameter(module, modinfo='modinfo'):
+    """Whether the loaded driver has provision_keybag: 'present', 'removed' or None."""
+    if (module / 'parameters/provision_keybag').exists():
+        return 'present'
+    try:
+        names = subprocess.run([modinfo, '-p', 'apple_sep'], capture_output=True, text=True, timeout=5)
+        version = subprocess.run([modinfo, '-F', 'srcversion', 'apple_sep'], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    names = {line.partition(':')[0].strip() for line in names.stdout.splitlines()} if names.returncode == 0 else set()
+    # Only the aurora driver has xart_guard; a module rebuilt since the load isn't the loaded one.
+    loaded = module / 'srcversion'
+    if 'xart_guard' not in names or (loaded.is_file() and loaded.read_text().strip() != version.stdout.strip()):
+        return None
+    return 'present' if 'provision_keybag' in names else 'removed'
+
+
+def report(options, driver, log, existing=False, parameter=None):
     intended = configured(options)
     existing = existing or intended.get('provision_keybag') == '0'
     active, source = readback(driver, log)
+    if parameter is not None:
+        active['provision_keybag_parameter'], source['provision_keybag_parameter'] = parameter, 'installed module'
     mismatches, warnings = [], []
     if existing:
         # Configured 0 keeps older kernels from provisioning; newer ones ignore it.
+        # A module that still has the parameter wins over any log line.
         always_provisions = active.get('provision_keybag_parameter') == 'removed'
         for key, expected in EXPECTED.items():
             if intended.get(key) != expected:
@@ -136,7 +157,9 @@ def main():
             log = result.stdout if result.returncode == 0 else ''
         except (OSError, subprocess.TimeoutExpired):
             log = ''
-    value = report(args.options, args.driver, log, args.existing)
+    module = Path(os.environ.get('OMARCHY_MAC_TOUCHID_MODULE', '/sys/module/apple_sep'))
+    parameter = installed_parameter(module, os.environ.get('OMARCHY_MAC_TOUCHID_MODINFO', 'modinfo'))
+    value = report(args.options, args.driver, log, args.existing, parameter)
     print(json.dumps(value, sort_keys=True))
     return int(value['status'] == 'mismatch')
 
