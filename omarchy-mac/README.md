@@ -75,6 +75,8 @@ The mocked behavioral tests cover Wi-Fi health, disabled radio, journal cursor/b
 
 Before release promotion, record physical M1/M2 suspend/resume (including lid close on a BCM4388 Mac), ten first Wi-Fi joins after a driver reload (`test/manual/wifi-first-join-check.sh`), speaker and microphone tests, the top row after an upgrade (F10 mutes, Fn+F10 sends F10, before and after a reboot), effective configuration, package transaction, source/recipe revisions, and reboot evidence. Aurora needs separate evidence. A successful source test run or candidate build is not physical hardware qualification. Do not publish this candidate to the rolling feed automatically.
 
+Existing-state adoption does not enable `xarm_trace`: opcode/status tracing is optional diagnostics and is not required by policy admission.
+
 ## Hyprland queue authorization
 
 `libcap` supplies `setcap`; the external omarchy-mac recipe depends on `rtkit`, which depends on `libcap`. If `setcap` is missing on a damaged installation, the helper reports how to install it and retry. System setup grants `/usr/bin/Hyprland` `cap_sys_nice=ep`; the packaged `90-omarchy-mac-hyprland-capabilities.hook` restores it after a Hyprland binary or helper upgrade. The first transaction installing a new hook cannot run it: setup covers new installs, and an existing installation must run `sudo /usr/lib/omarchy-mac/hyprland-capabilities` once after upgrading this package. This applies on the next Hyprland start; it never restarts the current session. Replacing the binary discards its xattr, so a one-time manual `setcap` is insufficient. No capability is applied by `./install DESTDIR`.
