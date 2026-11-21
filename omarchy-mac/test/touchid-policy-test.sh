@@ -34,6 +34,27 @@ with tempfile.TemporaryDirectory() as tmp:
  options.write_text('options apple_sep xart_writes=1 provision_keybag=1\n')
  assert p.report(options,driver,removed)['status']=='observed','the normal profile is unchanged on newer kernels'
  options.write_text(kept)
+ # The log can rotate away the loader's line; the installed module still answers.
+ assert p.report(options,driver,'',True,'removed')['status']=='verified','a wrapped log is not a mismatch'
+ assert p.report(options,driver,removed,True,'present')['status']=='mismatch','a module with the parameter beats the log'
+ assert p.report(options,driver,'',True,'removed')['active']['provision_keybag_parameter']=='removed'
+ assert p.report(options,driver,created,True,'removed')['status']=='mismatch','a new identity is refused either way'
+ module=root/'sys/module/apple_sep';module.mkdir(parents=True);modinfo=root/'modinfo'
+ def stub(parms,version='ABC'):
+  modinfo.write_text('#!/bin/sh\nif [ "$1" = -p ]; then printf "'+''.join(n+':desc (u8)\\n' for n in parms)+'"; else echo '+version+'; fi\n');modinfo.chmod(0o755)
+ stub(['trusted_keys','xart_guard','xart_start_sector'])
+ assert p.installed_parameter(module,str(modinfo))=='removed'
+ stub(['xart_writes','provision_keybag','xart_guard'])
+ assert p.installed_parameter(module,str(modinfo))=='present'
+ stub(['unrelated'])
+ assert p.installed_parameter(module,str(modinfo)) is None,'another driver named apple_sep says nothing'
+ stub(['xart_guard']);(module/'srcversion').write_text('OLD\n')
+ assert p.installed_parameter(module,str(modinfo)) is None,'a module rebuilt since the load says nothing'
+ (module/'srcversion').write_text('ABC\n')
+ assert p.installed_parameter(module,str(modinfo))=='removed'
+ (module/'parameters').mkdir();(module/'parameters/provision_keybag').write_text('0\n')
+ assert p.installed_parameter(module,str(modinfo))=='present','a published parameter wins'
+ assert p.installed_parameter(root/'none',str(root/'missing-modinfo')) is None
  (diag/'policy').unlink();(diag/'xart').write_text('enabled\n');(diag/'xart_guard').write_text('1\n')
  log='apple_sep: xART guard level 1\napple_sep: writes ENABLED\napple_sep: xART: using /chosen/apfs-preboot-uuid\n'
  result=p.report(options,driver,log,True)
@@ -50,5 +71,5 @@ with tempfile.TemporaryDirectory() as tmp:
  assert result['status']=='mismatch' and '123456789' not in json.dumps(result)
  options.write_text('options apple_sep xart_writes=1 provision_keybag=1\n')
  assert p.report(options,driver,'')['status']=='observed','normal first-time profile stays unchanged'
-print('ok - cached policy, post-#2591 provision_keybag=1, old-ABI diagnostics/logs and missing parameter files stay distinct; no identity values leaked')
+print('ok - cached policy, post-#2591 provision_keybag=1 (module or log), old-ABI diagnostics/logs and missing parameter files stay distinct; no identity values leaked')
 PY
