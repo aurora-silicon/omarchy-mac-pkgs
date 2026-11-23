@@ -15,19 +15,20 @@ native_ready() {
   local path driver
   native_display=false
   native_gpu=false
+  # LEGACY-ASAHI(2027-02-28): kernels from before the rename bind the G15 GPU as asahi-g15.
   for path in "$sys"/class/drm/*; do
     [[ ${path##*/} =~ ^(card[0-9]+|renderD[0-9]+)$ ]] || continue
     driver=$(readlink -f "$path/device/driver") || continue
     if [[ ${path##*/} == card* && ${driver##*/} == "apple-drm" ]]; then
       native_display=true
-    elif [[ ${path##*/} == renderD* && ${driver##*/} == "asahi-g15" && -e $dev/dri/${path##*/} ]]; then
+    elif [[ ${path##*/} == renderD* && ( ${driver##*/} == "aurora-g15" || ${driver##*/} == "asahi-g15" ) && -e $dev/dri/${path##*/} ]]; then
       native_gpu=true
     fi
   done
   [[ $native_display == "true" && $native_gpu == "true" ]]
 }
 # Only a boot whose loader handed both over can bring native graphics up. Without
-# that (an owner opt-out, a refused check, an older m1n1) waiting only delays login.
+# that (an owner opt-out, a refused check, an older aura) waiting only delays login.
 handed_over() {
   local gpu status
   gpu=$(tr -d '\0' <"$proc/device-tree/aliases/gpu" 2>/dev/null) || return 1

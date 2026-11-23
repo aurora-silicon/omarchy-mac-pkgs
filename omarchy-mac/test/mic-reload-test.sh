@@ -23,7 +23,7 @@ chmod +x "$work/bin/"*
 # A package upgrade replaces the running watcher's file: the watcher runs the
 # new file under its own PID with its arguments, and stops its subscriber.
 "$ROOT"/install "$work/root"
-mapper=$work/root/usr/bin/omarchy-audio-asahi-mic-map
+mapper=$work/root/usr/bin/omarchy-audio-aurora-mic-map
 # The host's pacman lock and audio session stay out of it.
 cat >"$work/watch.py" <<'WATCH'
 import importlib.machinery, importlib.util, sys

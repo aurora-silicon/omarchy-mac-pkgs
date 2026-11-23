@@ -30,10 +30,29 @@ for flags_dir in "${flag_dirs[@]}"; do
   done
 done
 
+# LEGACY-ASAHI(2027-02-28): the mapper unit was omarchy-asahi-mic.service. The vendor wants
+# link moves to the new name; a mask on the old name stays a mask on the new one. Other
+# overrides of the old name named a unit that no longer exists, so they are left alone.
+migrate_microphone_unit() {
+  local old=omarchy-asahi-mic.service new=omarchy-aurora-mic.service
+  local wants="$config/systemd/user/graphical-session.target.wants"
+  if [[ -L $config/systemd/user/$old && $(readlink "$config/systemd/user/$old") == /dev/null &&
+    ! -e $config/systemd/user/$new && ! -L $config/systemd/user/$new ]]; then
+    ln -s /dev/null "$config/systemd/user/$new"
+  fi
+  if [[ -L $wants/$old && $(readlink "$wants/$old") == "/usr/lib/systemd/user/$old" ]]; then
+    rm -f "$wants/$old"
+    if [[ ! -e $wants/$new && ! -L $wants/$new ]]; then
+      ln -s "/usr/lib/systemd/user/$new" "$wants/$new"
+    fi
+  fi
+}
+
 # The microphone mapper: enabled once, keeping every override and a later
 # disable.
 setup_microphone() {
-  unit=omarchy-asahi-mic.service
+  unit=omarchy-aurora-mic.service
+  migrate_microphone_unit
   # Masks, custom fragments and custom wants links are user/administrator choices.
   # Never enable --force or replace them with a vendor fragment.
   for file in "$config/systemd/user/$unit" "$root/etc/systemd/user/$unit" "${XDG_RUNTIME_DIR:-/run/user/$UID}/systemd/user/$unit" "$root/run/systemd/user/$unit"; do

@@ -4,7 +4,7 @@
 once its owner has agreed to turn Touch ID on.
 
 The key is device-private. asahi-installer leaves this Mac's factory records
-on the ESP, in asahi/all_firmware.tar.gz; the key is the MSRk record's IM4P
+on the ESP, in aurora/all_firmware.tar.gz; the key is the MSRk record's IM4P
 under the FDR sealing manifest (seal-<ECID>), with the trust bundle as secb,
 as macOS stores the other records in its factory cache. Every byte comes from
 those records, and each must also be found, byte for byte, somewhere in this
@@ -304,7 +304,11 @@ def main():
         print("touchid-root-key: this is not an Apple Silicon Mac", file=sys.stderr)
         return 1
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--archive", default="/boot/efi/asahi/all_firmware.tar.gz")
+    # LEGACY-ASAHI(2027-02-28): installs from before the rename keep the records in asahi/.
+    default_archive = next((p for p in ("/boot/efi/aurora/all_firmware.tar.gz",
+                                        "/boot/efi/asahi/all_firmware.tar.gz") if os.path.exists(p)),
+                           "/boot/efi/aurora/all_firmware.tar.gz")
+    parser.add_argument("--archive", default=default_archive)
     parser.add_argument("--container", default="/dev/disk/by-partlabel/iBootSystemContainer")
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("-o", "--output")

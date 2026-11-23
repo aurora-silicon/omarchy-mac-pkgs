@@ -8,6 +8,10 @@ firmware=${OMARCHY_MAC_TOUCHID_FIRMWARE:-/usr/lib/firmware}
 extractors=${OMARCHY_MAC_TOUCHID_EXTRACTORS:-/usr/lib/linux-aurora}
 python=${OMARCHY_MAC_TOUCHID_PYTHON:-python3}
 esp=${OMARCHY_MAC_TOUCHID_ESP:-/boot/efi}
+# The installer keeps the factory records in aurora/ on the ESP.
+# LEGACY-ASAHI(2027-02-28): installs from before the rename keep them in asahi/.
+factory_records=$esp/aurora/all_firmware.tar.gz
+[[ -r $factory_records || ! -r $esp/asahi/all_firmware.tar.gz ]] || factory_records=$esp/asahi/all_firmware.tar.gz
 omarchy-hw-apple-silicon || exit 0
 
 compatible() {
@@ -56,7 +60,7 @@ elif ! compatible apple,t8112 && ! compatible apple,t6020 && ! compatible apple,
   exit 0
 fi
 
-# m1n1's forwarded identity selects this install's own lane in the enclave.
+# aura's forwarded identity selects this install's own lane in the enclave.
 if [[ ! -r $tree/chosen/apfs-preboot-uuid ]]; then
   echo unsupported:no-os-identity
   exit 0
@@ -75,7 +79,7 @@ fi
 # The Neo's sensor key is rebuilt once the owner agrees, by touchid-root-key
 # (Python), from the factory records asahi-installer leaves on the ESP.
 if compatible apple,t8140 && ! installed apple/msrk-j700.bin &&
-  { [[ ! -r $esp/asahi/all_firmware.tar.gz ]] || ! command -v "$python" >/dev/null; }; then
+  { [[ ! -r $factory_records ]] || ! command -v "$python" >/dev/null; }; then
   echo unsupported:no-root-key
   exit 0
 fi

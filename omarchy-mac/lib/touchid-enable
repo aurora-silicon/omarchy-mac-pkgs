@@ -24,6 +24,10 @@ helpers=${OMARCHY_MAC_TOUCHID_HELPERS:-/usr/lib/omarchy-mac}
 node_path=${OMARCHY_MAC_TOUCHID_NODE:-/dev/sep-bio}
 keybag=${OMARCHY_MAC_TOUCHID_KEYBAG:-/var/lib/aurora-sep-keybag.bin}
 esp=${OMARCHY_MAC_TOUCHID_ESP:-/boot/efi}
+# The installer keeps the factory records in aurora/ on the ESP.
+# LEGACY-ASAHI(2027-02-28): installs from before the rename keep them in asahi/.
+factory_records=$esp/aurora/all_firmware.tar.gz
+[[ -r $factory_records || ! -r $esp/asahi/all_firmware.tar.gz ]] || factory_records=$esp/asahi/all_firmware.tar.gz
 container=${OMARCHY_MAC_TOUCHID_CONTAINER:-/dev/disk/by-partlabel/iBootSystemContainer}
 python=${OMARCHY_MAC_TOUCHID_PYTHON:-python3}
 lock_wait=${OMARCHY_MAC_TOUCHID_LOCK_WAIT:-300}
@@ -143,7 +147,7 @@ if tr '\0' '\n' <"$tree/compatible" | grep -Fxq apple,t8140 && ! root_key_instal
   # a failure, even one the extractor reports after its rename, takes it back
   # with the agreement.
   rebuilt=1
-  "$python" -I "$helpers/touchid-root-key" --archive "$esp/asahi/all_firmware.tar.gz" --container "$container" \
+  "$python" -I "$helpers/touchid-root-key" --archive "$factory_records" --container "$container" \
     -o "$firmware/updates/apple/msrk-j700.bin" || fail "this Mac's sensor key could not be read"
 fi
 
