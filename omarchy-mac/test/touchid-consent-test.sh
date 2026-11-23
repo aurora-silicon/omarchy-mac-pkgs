@@ -154,6 +154,7 @@ run() {
     OMARCHY_MAC_TOUCHID_EXTRACTORS=$fixture/extractors OMARCHY_MAC_TOUCHID_AGREED=$fixture/etc/touchid-on \
     OMARCHY_MAC_TOUCHID_OPTIONS=$fixture/etc/modprobe.conf OMARCHY_MAC_TOUCHID_MODULE=$fixture/module \
     OMARCHY_MAC_TOUCHID_STATUS=$fixture/run/touchid OMARCHY_MAC_TOUCHID_HELPERS=$ROOT/lib \
+    OMARCHY_MAC_TOUCHID_STATECHECK=$fixture/no-statecheck OMARCHY_MAC_TOUCHID_DRIVER=$fixture/apple_sep OMARCHY_MAC_TOUCHID_POLICY_LOG=$fixture/no-kernel-log OMARCHY_MAC_TOUCHID_MODINFO=$fixture/no-modinfo \
     OMARCHY_MAC_TOUCHID_NODE=$fixture/sep-bio OMARCHY_MAC_TOUCHID_KEYBAG=$fixture/keybag \
     OMARCHY_MAC_TOUCHID_ESP=$fixture/esp OMARCHY_MAC_TOUCHID_CONTAINER=${container:-$work/factory/isc.img} \
     OMARCHY_MAC_TOUCHID_PYTHON=${python:-python3} "$ROOT/lib/$1" "${@:2}"
@@ -650,6 +651,69 @@ run touchid-status
 [[ $(<"$fixture/run/touchid") == "available" && ! -s $fixture/calls ]] ||
   fail 'after turning it off, the next boot leaves it off and only offers it again'
 pass 'enable-fingerprint asks before anything turns on, and turning it off lasts'
+
+# Existing-bag adoption uses only synthetic state and stubbed module operations.
+# Fixtures belong to the test runner; stat supplies root ownership for them.
+cat >"$fixture/bin/stat" <<'STUB'
+#!/bin/bash
+if [[ $* == *"%u:%g:%a"* ]]; then
+  value=$(/usr/bin/stat "$@") || exit
+  printf '0:0:%s\n' "${value#*:*:}"
+else
+  exec /usr/bin/stat "$@"
+fi
+STUB
+chmod +x "$fixture/bin/stat"
+existing_fixture() {
+  local file name
+  "$@"
+  for file in "$fixture"/aurora-sep-*.bin "$fixture"/apple-sep-catacomb-*.bin; do
+    rm -f "$file"
+  done
+  mkdir -p "$fixture/firmware/vendor/apple"
+  printf calibration >"$fixture/firmware/vendor/apple/mesa_calibration.bin"
+  for name in aurora-sep-keybag.bin aurora-sep-host-state.bin aurora-sep-refkey.bin \
+    apple-sep-catacomb-master.bin apple-sep-catacomb-owner.bin apple-sep-catacomb-user.bin aurora-sep-xart-owned.bin; do
+    printf synthetic >"$fixture/$name"
+    chmod 0600 "$fixture/$name"
+  done
+  : >"$fixture/aurora-sep-xart-owned.bin"
+  echo ready >"$fixture/activation"
+}
+for spec in 'apple,j613 apple,t8122' 'apple,j414c apple,t6021'; do
+  read -r board chip <<<"$spec"
+  existing_fixture machine "$board" "$chip" apple,arm-platform
+  before=$(sha256sum "$fixture"/*.bin)
+  run touchid-enable --existing >/dev/null || fail "an existing bag is adopted on $board"
+  [[ $(sha256sum "$fixture"/*.bin) == "$before" ]] || fail 'adoption leaves every state byte unchanged'
+  grep -Fxq 'options apple_sep xart_writes=1 provision_keybag=0 xart_guard=1 trusted_keys=0 filevault_api=0' "$fixture/options-at-load" ||
+    fail 'adoption disables provisioning and optional key APIs with the qualified guard'
+  ! grep -q calibration "$fixture/calls" || fail 'adoption never carves calibration'
+done
+for refusal in absent empty symlink hardlink writable calibration recovery loaded; do
+  existing_fixture machine apple,j414c apple,t6021 apple,arm-platform
+  file=$fixture/aurora-sep-host-state.bin
+  case $refusal in
+    absent) rm "$file" ;;
+    empty) : >"$file" ;;
+    symlink) rm "$file"; ln -s aurora-sep-keybag.bin "$file" ;;
+    hardlink) ln "$file" "$fixture/second-link" ;;
+    writable) chmod 0620 "$file" ;;
+    calibration) rm "$fixture/firmware/vendor/apple/mesa_calibration.bin" ;;
+    recovery) touch "$fixture/aurora-sep-refkey-v2.bin" ;;
+    loaded) mkdir "$fixture/module" ;;
+  esac
+  ! run touchid-enable --existing >/dev/null 2>&1 && [[ ! -e $fixture/etc/touchid-on ]] &&
+    ! grep -qE 'modprobe|calibration' "$fixture/calls" || fail "unsafe existing-bag $refusal is refused before consent or load"
+  rm -f "$fixture/second-link"
+done
+existing_fixture neo
+! run touchid-enable --existing >/dev/null 2>&1 && [[ ! -e $fixture/etc/touchid-on ]] &&
+  [[ -z $(key_copies) ]] && ! grep -q modprobe "$fixture/calls" ||
+  fail 'adoption refuses a Neo whose sensor key would have to be rebuilt'
+cp "$work/factory/key.bin" "$fixture/firmware/vendor/apple/msrk-j700.bin"
+run touchid-enable --existing >/dev/null || fail 'a Neo with an installed key can adopt its existing bag'
+pass 'existing-bag adoption never provisions, copies state, carves calibration or retries a loaded module'
 
 if command -v systemd-analyze >/dev/null; then
   stub_systemd_boot_targets "$work/root"
